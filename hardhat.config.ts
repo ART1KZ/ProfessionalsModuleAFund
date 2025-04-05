@@ -4,17 +4,18 @@ import "@nomicfoundation/hardhat-toolbox";
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.28",
+    // включение оптимизатора
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 200, // чем больше число, тем сильнее оптимизация
       },
     },
   },
   networks: {
     hardhat: {
-      gas: 'auto',
       chainId: 1337,
+      // заготовленные аккаунты с балансами
       accounts: [
         // Fond: 1 000 000 ETH
         {privateKey: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba", balance: "1000000000000000000000000"},
