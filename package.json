@@ -17,10 +17,8 @@
   },
   "homepage": "https://github.com/ART1KZ/Proffessionals2025InterregionalBlockchainModuleA#readme",
   "description": "",
-  "dependencies": {
-    "hardhat": "^2.22.19"
-  },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0"
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.19"
   }
 }

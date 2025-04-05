@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import "./bundles/GovernanceBundle.sol";
 import {SystemToken} from "./tokens/SystemToken.sol";
 import {WrapToken} from "./tokens/WrapToken.sol";
 
-contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
+contract VentureFund is Governor, GovernorCountingSimple, GovernorVotes {
     SystemToken systemToken;
     WrapToken wrapToken;
 

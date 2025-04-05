@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.28;
 
 import "../bundles/ERC20Bundle.sol";
 
 contract SystemToken is ERC20, ERC20Permit, ERC20Votes {
-    constructor(uint256 _totalSupply, address acc1, address acc2, address acc3) ERC20("Professional", "PROFI") ERC20Permit("PROFI") {
-        uint256 initBalanceForAccount = _totalSupply / 3;
-        _mint(acc1, initBalanceForAccount * 10**decimals());
-        _mint(acc2, initBalanceForAccount * 10**decimals());
-        _mint(acc3, initBalanceForAccount * 10**decimals());
+    constructor(address[] memory _daoMembers) ERC20("Professional", "PROFI") ERC20Permit("PROFI") {
+        uint256 initBalanceForAccount = 100000 / _daoMembers.length;
+
+        for(uint256 i = 0; i < _daoMembers.length; i++) {
+            _mint(_daoMembers[i], initBalanceForAccount * 10**decimals());
+        }
     }
 
     function decimals() public pure override returns(uint8) {
