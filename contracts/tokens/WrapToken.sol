@@ -2,10 +2,13 @@
 
 pragma solidity ^0.8.29;
 
-import "contracts/ERC20Bundle.sol";
+import "../bundles/ERC20Bundle.sol";
 
 contract WrapToken is ERC20 {
-    constructor() ERC20("RTKCoin", "RTK") {
+    address public owner;
+
+    constructor(address _owner) ERC20("RTKCoin", "RTK") {
+        owner = _owner;
         _mint(msg.sender, 20000000 * 10**decimals());
     }
 
@@ -15,10 +18,6 @@ contract WrapToken is ERC20 {
 
     function price() public pure returns (uint256) {
         return 1 ether;
-    }
-
-    function mint(address _to, uint256 _amount) public {
-        _mint(_to, _amount);
     }
 
     function transferFrom(address _from, address _to, uint256 _amount) public override returns(bool) {

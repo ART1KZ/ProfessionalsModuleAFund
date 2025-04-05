@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./GovernanceBundle.sol";
+import "./bundles/GovernanceBundle.sol";
 import {SystemToken} from "./tokens/SystemToken.sol";
 import {WrapToken} from "./tokens/WrapToken.sol";
 
@@ -52,8 +52,16 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
         VotingStatus status;
     }
 
+    struct Votes {
+        uint256 forVotes;
+        uint256 againstVotes;
+        mapping(address => uint256) votedTokens;
+        address[] voters;
+    }
+
     UnvotedProposal[] public unvotedProposals;
     VotedProposal[] public votedProposals;
+    mapping(uint256 => Votes) internal votes;
     mapping(address => bool) internal daoMembers;
     uint256 internal daoMembersCount;
     uint256 internal votingPeriodMinutes;
@@ -76,22 +84,30 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
         systemTokensPerVote = 3;
     }
 
-    modifier votedProposalsExists {
+    modifier votedProposalsExists() {
         require(votedProposals.length > 0, "Not found voted proposals");
         _;
     }
 
-    function getMyBalance() public view returns (uint256) {
+    modifier daoMember() {
+        require(daoMembers[msg.sender], "You must be dao member to do this action");
+        _;
+    }
+
+    function getMyBalance() public view returns (string memory tokenName, uint256 amount) {
         if (daoMembers[msg.sender]) {
-            return systemToken.balanceOf(msg.sender);
+            tokenName = systemToken.name();
+            amount = systemToken.balanceOf(msg.sender);
         } else {
-            return wrapToken.balanceOf(msg.sender);
+            tokenName = wrapToken.name();
+            amount = wrapToken.balanceOf(msg.sender);
         }
     }
 
     function buyWrapToken() public payable {
         require(msg.value >= 0.01 ether, "Minimal value to buy is 0.01 ether");
-        wrapToken.mint(
+        wrapToken.transferFrom(
+            wrapToken.owner(),
             msg.sender,
             (msg.value * 10**wrapToken.decimals()) / wrapToken.price()
         );
@@ -111,8 +127,7 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
         uint256 _value,
         string memory _calldata,
         string memory _description
-    ) public returns (UnvotedProposal memory) {
-        require(daoMembers[msg.sender], "Only DAO members can propose");
+    ) public daoMember returns (UnvotedProposal memory) {
 
         bytes4 selector = bytes4(keccak256(bytes(_calldata)));
         bytes memory encodedArgs = abi.encode(_target, _value);
@@ -136,7 +151,7 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
         uint256 _votingMinutes,
         QuorumMechanism _quorumMechanism,
         uint8 _priority
-    ) public returns (uint256) {
+    ) public daoMember returns (uint256) {
         UnvotedProposal memory proposal = unvotedProposals[
             _unvotedProposalIndex
         ];
@@ -204,6 +219,7 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
 
     function getVotedProposalData(uint256 _votedProposalId)
         public
+        view
         votedProposalsExists
         returns (VotedProposal memory)
     {
@@ -220,7 +236,12 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
         return proposal;
     }
 
-    function deleteVoting(uint256 _votedProposalId) public votedProposalsExists returns(uint256){
+    function deleteVoting(uint256 _votedProposalId)
+        public
+        votedProposalsExists
+        daoMember
+        returns (uint256)
+    {
         VotedProposal storage proposal = votedProposals[0];
         bool isProposalFinded;
 
@@ -231,9 +252,27 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
                 break;
             }
         }
-        
-        //TODO: доделать возвращение балансов пользователей, добавить хранение переданных балансов
+
+        require(isProposalFinded, "Proposal not found");
+        require(
+            proposal.proposedBy == msg.sender,
+            "Only proposal author can delete voting"
+        );  
+
+        address[] memory voters = votes[_votedProposalId].voters;
+
+        if(voters.length > 0) {
+            for(uint256 i = 0; i < voters.length; i++) {
+                address voter = votes[_votedProposalId].voters[i];
+                uint256 tokensVoted = votes[_votedProposalId].votedTokens[voter];
+
+                if(tokensVoted > 0) {
+                    systemToken.transferFrom(address(this), voter, tokensVoted);
+                } 
+            }
+        }
         proposal.status = VotingStatus.Deleted;
+        emit ProposalCanceled(_votedProposalId);
         return proposal.id;
     }
 
@@ -241,7 +280,7 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
         uint256 _votedProposalId,
         uint8 _support,
         uint256 _amount
-    ) public votedProposalsExists returns (uint256) {
+    ) public votedProposalsExists daoMember returns (uint256) {
         VotedProposal storage proposal = votedProposals[0];
         bool isProposalFinded;
 
@@ -253,12 +292,41 @@ contract Fund is Governor, GovernorCountingSimple, GovernorVotes {
             }
         }
         require(isProposalFinded, "Proposal not found");
-        require(proposal.status != VotingStatus.Deleted && proposal.status != VotingStatus.Decided, "Proposal voting not active");
+        require(
+            proposal.status != VotingStatus.Deleted &&
+                proposal.status != VotingStatus.Decided,
+            "Proposal voting not active"
+        );
 
         if (block.timestamp >= proposal.endTime) {
             proposal.status = VotingStatus.Decided;
             return 0;
-        } 
+        }
+
+        address[] memory voters = votes[_votedProposalId].voters;
+        bool isVoterAlreadyVoted;
+
+        if(voters.length > 0) {
+            for(uint256 i = 0; i < voters.length; i++) {
+                if(msg.sender == voters[i]) {
+                    isVoterAlreadyVoted = true;
+                    break;
+                }
+            }
+        }
+
+        require(!isVoterAlreadyVoted, "You already voted on this proposal");
+
+        if(proposal.quorumMechanism == QuorumMechanism.Weighted) {
+            require(_amount > 0, "Amount must be more than zero");
+            systemToken.transferFrom(msg.sender, address(this), _amount);
+            votes[_votedProposalId].votedTokens[msg.sender] = _amount;
+        } else {
+            require(_amount == 0, "Amount must equal zero");
+        }
+        
+        super.castVote(_votedProposalId, _support);
+        votes[_votedProposalId].voters.push(msg.sender);
         // TODO: доделать голосование
         return _amount;
     }
