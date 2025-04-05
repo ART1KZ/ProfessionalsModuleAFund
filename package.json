@@ -1,0 +1,26 @@
+{
+  "name": "proffessionals2025interregionalblockchainmodulea",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ART1KZ/Proffessionals2025InterregionalBlockchainModuleA.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ART1KZ/Proffessionals2025InterregionalBlockchainModuleA/issues"
+  },
+  "homepage": "https://github.com/ART1KZ/Proffessionals2025InterregionalBlockchainModuleA#readme",
+  "description": "",
+  "dependencies": {
+    "hardhat": "^2.22.19"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0"
+  }
+}
